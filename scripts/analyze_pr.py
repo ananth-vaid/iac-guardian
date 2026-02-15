@@ -13,6 +13,7 @@ import anthropic
 from datadog_api_client import get_datadog_context
 from fix_generator import FixGenerator
 from github_pr_creator import GitHubPRCreator
+from output_formatter import OutputFormatter
 
 def parse_diff(diff_file: str) -> Dict[str, any]:
     """Parse git diff to extract changed files and their changes"""
@@ -202,19 +203,20 @@ def main():
         # Try to generate and create fix
         fix_pr_url = try_create_fix(changes, datadog_context, analysis)
 
-    # Output the analysis (with fix PR link if created)
-    if fix_pr_url:
-        print(analysis)
-        print(f"\n\n---\n\n## 🔧 Auto-Generated Fix Available\n")
-        print(f"✅ **We've created a safe alternative PR for you!**\n")
-        print(f"**Fix PR:** {fix_pr_url}\n")
-        print(f"This PR includes:")
-        print(f"- Safe configuration based on your production metrics")
-        print(f"- Detailed explanation of changes")
-        print(f"- Cost and performance comparison\n")
-        print(f"👉 **Review the fix PR and merge that instead of this risky change.**")
+    # Format and output the analysis
+    formatter = OutputFormatter()
+
+    # Check if we're outputting for GitHub (has GITHUB_ACTIONS env) or terminal
+    is_github = os.getenv('GITHUB_ACTIONS') == 'true'
+
+    if is_github:
+        # Format for GitHub PR comment (with HTML/badges)
+        formatted_output = formatter.format_analysis(analysis, fix_pr_url)
     else:
-        print(analysis)
+        # Format for terminal (clean, no HTML)
+        formatted_output = formatter.format_for_terminal(analysis, fix_pr_url)
+
+    print(formatted_output)
 
 
 if __name__ == "__main__":

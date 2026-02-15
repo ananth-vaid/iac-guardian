@@ -30,10 +30,12 @@ class FixGenerator:
             }
         """
         # Detect issue type from changes and analysis
-        if changes.get('replica_changes') and 'CRITICAL RISK' in analysis:
+        analysis_upper = analysis.upper()
+
+        if changes.get('replica_changes') and ('CRITICAL' in analysis_upper or 'DO NOT MERGE' in analysis_upper):
             return self._generate_k8s_replica_fix(changes, datadog_context)
 
-        elif (changes.get('count_changes') or changes.get('instance_type_changes')) and 'over-provision' in analysis.lower():
+        elif (changes.get('count_changes') or changes.get('instance_type_changes')) and ('over-provision' in analysis.lower() or 'COST' in analysis_upper):
             return self._generate_cost_optimization_fix(changes, datadog_context)
 
         return None
