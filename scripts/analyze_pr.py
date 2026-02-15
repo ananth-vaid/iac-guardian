@@ -10,7 +10,9 @@ import json
 import re
 from typing import Dict, List, Optional
 import anthropic
-from datadog_mcp_client import get_datadog_context
+from datadog_api_client import get_datadog_context
+from fix_generator import FixGenerator
+from github_pr_creator import GitHubPRCreator
 
 def parse_diff(diff_file: str) -> Dict[str, any]:
     """Parse git diff to extract changed files and their changes"""
@@ -56,6 +58,39 @@ def parse_diff(diff_file: str) -> Dict[str, any]:
         changes['count_changes'] = count_changes
 
     return changes
+
+
+def try_create_fix(changes: Dict, datadog_context: Dict, analysis: str) -> Optional[str]:
+    """
+    Try to generate and create a fix PR
+
+    Returns:
+        PR URL if successful, None otherwise
+    """
+    try:
+        # Generate fix
+        generator = FixGenerator()
+        fix = generator.generate_fix(changes, datadog_context, analysis)
+
+        if not fix:
+            print("ℹ️  No automatic fix available for this issue")
+            return None
+
+        print(f"\n🔧 Generated fix: {fix['description']}")
+
+        # Create PR
+        pr_creator = GitHubPRCreator()
+        pr_number = os.getenv('PR_NUMBER')  # From GitHub Actions
+        pr_url = pr_creator.create_fix_pr(
+            fix=fix,
+            original_pr_number=int(pr_number) if pr_number else None
+        )
+
+        return pr_url
+
+    except Exception as e:
+        print(f"⚠️  Could not create auto-fix: {e}")
+        return None
 
 
 def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -> str:
@@ -153,14 +188,33 @@ def main():
         print("ℹ️ No infrastructure changes detected in this PR.")
         sys.exit(0)
 
-    # Get Datadog context via MCP
+    # Get Datadog context via API
     datadog_context = get_datadog_context(changes)
 
     # Analyze with Claude
     analysis = analyze_with_claude(changes, datadog_context)
 
-    # Output the analysis
-    print(analysis)
+    # Check if auto-fix is enabled and issue is detected
+    auto_fix_enabled = os.getenv('IAC_GUARDIAN_AUTO_FIX', 'true').lower() == 'true'
+
+    fix_pr_url = None
+    if auto_fix_enabled and datadog_context:
+        # Try to generate and create fix
+        fix_pr_url = try_create_fix(changes, datadog_context, analysis)
+
+    # Output the analysis (with fix PR link if created)
+    if fix_pr_url:
+        print(analysis)
+        print(f"\n\n---\n\n## 🔧 Auto-Generated Fix Available\n")
+        print(f"✅ **We've created a safe alternative PR for you!**\n")
+        print(f"**Fix PR:** {fix_pr_url}\n")
+        print(f"This PR includes:")
+        print(f"- Safe configuration based on your production metrics")
+        print(f"- Detailed explanation of changes")
+        print(f"- Cost and performance comparison\n")
+        print(f"👉 **Review the fix PR and merge that instead of this risky change.**")
+    else:
+        print(analysis)
 
 
 if __name__ == "__main__":
