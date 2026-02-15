@@ -8,7 +8,7 @@ metadata:
     team: payments
     service: checkout
 spec:
-  replicas: 20
+  replicas: 5
   selector:
     matchLabels:
       app: payment-api
