@@ -64,7 +64,7 @@ class OutputFormatter:
             'CRITICAL': 'critical',
             'HIGH': 'red',
             'MEDIUM': 'orange',
-            'LOW': 'yellow'
+            'LOW': 'green'
         }
         color = colors.get(risk_level, 'orange')
 
@@ -73,21 +73,13 @@ class OutputFormatter:
             'CRITICAL': '🚨',
             'HIGH': '⚠️',
             'MEDIUM': '⚡',
-            'LOW': 'ℹ️'
+            'LOW': '✅'
         }
         emoji = emojis.get(risk_level, '⚡')
 
-        header = f"""<div align="center">
+        header = f"""# {emoji} IaC Guardian Analysis
 
-# {emoji} IaC Guardian Analysis
-
-![Risk Level](https://img.shields.io/badge/Risk-{risk_level}-{color}?style=for-the-badge)
-![Risk Score](https://img.shields.io/badge/Score-{risk_score}%2F10-{color}?style=flat-square)
-![Powered by](https://img.shields.io/badge/Powered%20by-Datadog%20%2B%20Claude-blueviolet?style=flat-square)
-
-</div>
-
----
+![Risk](https://img.shields.io/badge/Risk-{risk_level}-{color}?style=for-the-badge) ![Score](https://img.shields.io/badge/Score-{risk_score}%2F10-{color}) ![Powered by](https://img.shields.io/badge/Datadog%20%2B%20Claude-blueviolet)
 """
         return header
 
@@ -95,20 +87,9 @@ class OutputFormatter:
     def _format_fix_pr_callout(fix_pr_url: str) -> str:
         """Format fix PR callout box"""
         callout = f"""> [!TIP]
-> ## 🔧 Safe Alternative Available
+> **🔧 Auto-Fix Available:** {fix_pr_url}
 >
-> **We've automatically generated a fix for this issue!**
->
-> 👉 **Review the fix PR:** {fix_pr_url}
->
-> This alternative PR includes:
-> - ✅ Safe configuration based on your production metrics
-> - 📊 Detailed cost and performance analysis
-> - 🛡️ Prevents the issues identified below
->
-> **Recommendation:** Close this PR and merge the fix PR instead.
-
----
+> Close this PR and merge the fix instead.
 """
         return callout
 
@@ -150,17 +131,9 @@ class OutputFormatter:
     @staticmethod
     def _format_footer() -> str:
         """Format footer with attribution"""
-        footer = """---
-
-<div align="center">
-
-**🤖 Analysis powered by [IaC Guardian](https://github.com/DataDog/iac-guardian)**
-
-*Using real-time Datadog metrics + Claude AI to prevent production incidents*
-
-</div>
-
-<sub>💡 Questions about this analysis? Comment `/iac-guardian help`</sub>
+        footer = """
+---
+<sub>🤖 Powered by [IaC Guardian](https://github.com/DataDog/iac-guardian) • Datadog + Claude AI</sub>
 """
         return footer
 

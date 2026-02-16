@@ -131,34 +131,27 @@ def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -
     # Prompt for analysis
     prompt = f"""{context}
 
-Analyze this infrastructure change for:
+Analyze this infrastructure change and provide a CRISP, SHORT analysis in exactly this format:
 
-1. **Risk Assessment** 🚨
-   - Will this cause outages or performance degradation?
-   - Based on the metrics, can the infrastructure handle the load?
-   - Are there any dangerous configuration changes?
+## Risk Level: [CRITICAL/HIGH/MEDIUM/LOW]
 
-2. **Cost Impact** 💰
-   - Are resources over-provisioned or under-utilized?
-   - What's the estimated cost change?
-   - Any optimization opportunities?
+## Why This is Risky
+[1-2 sentences max. Be specific with numbers from the metrics. What will break?]
 
-3. **Recommendations** ✅
-   - What should be done before merging?
-   - Any safer alternatives?
+## What To Do
+[1-2 bullet points max. Clear action items.]
 
-Focus on these two demo scenarios:
-- **Scenario 1**: If replicas are being reduced, check if it can handle peak traffic
-- **Scenario 2**: If compute resources are being added, check if they're right-sized
+Focus on:
+- **Scenario 1**: If replicas reduced → can it handle peak traffic?
+- **Scenario 2**: If compute added → is it right-sized?
 
-Format your response in clear markdown with emojis, bullet points, and specific numbers from the metrics.
-Be direct and actionable - like you're talking to a busy engineer.
+Keep it SHORT and PUNCHY. Like a busy engineer needs to understand in 10 seconds.
 """
 
     try:
         response = client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=2000,
+            max_tokens=500,
             messages=[{
                 "role": "user",
                 "content": prompt
