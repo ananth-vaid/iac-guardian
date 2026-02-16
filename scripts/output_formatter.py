@@ -124,9 +124,11 @@ class OutputFormatter:
     @staticmethod
     def _make_section_collapsible(text: str, section_name: str, summary: str) -> str:
         """Wrap a section in a collapsible details block"""
-        # This is a simplified version - you could make it more sophisticated
-        # For now, just return as-is since Claude's formatting is already good
-        return text
+        return f"""<details>
+<summary><b>{summary}</b></summary>
+
+{text}
+</details>"""
 
     @staticmethod
     def _format_footer() -> str:
