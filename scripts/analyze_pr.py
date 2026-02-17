@@ -10,7 +10,10 @@ import json
 import re
 from typing import Dict, List, Optional
 import anthropic
-from datadog_mcp_client import get_datadog_context
+from datadog_api_client import get_datadog_context
+from fix_generator import FixGenerator
+from github_pr_creator import GitHubPRCreator
+from output_formatter import OutputFormatter
 
 def parse_diff(diff_file: str) -> Dict[str, any]:
     """Parse git diff to extract changed files and their changes"""
@@ -58,6 +61,42 @@ def parse_diff(diff_file: str) -> Dict[str, any]:
     return changes
 
 
+def try_create_fix(changes: Dict, datadog_context: Dict, analysis: str) -> Optional[str]:
+    """
+    Try to generate and create a fix PR
+
+    Returns:
+        PR URL if successful, None otherwise
+    """
+    try:
+        # Generate fix
+        generator = FixGenerator()
+        fix = generator.generate_fix(changes, datadog_context, analysis)
+
+        if not fix:
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print("ℹ️  No automatic fix available for this issue")
+            return None
+
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"\n🔧 Generated fix: {fix['description']}")
+
+        # Create PR
+        pr_creator = GitHubPRCreator()
+        pr_number = os.getenv('PR_NUMBER')  # From GitHub Actions
+        pr_url = pr_creator.create_fix_pr(
+            fix=fix,
+            original_pr_number=int(pr_number) if pr_number else None
+        )
+
+        return pr_url
+
+    except Exception as e:
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"⚠️  Could not create auto-fix: {e}")
+        return None
+
+
 def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -> str:
     """Send changes to Claude for analysis"""
 
@@ -95,34 +134,27 @@ def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -
     # Prompt for analysis
     prompt = f"""{context}
 
-Analyze this infrastructure change for:
+Analyze this infrastructure change and provide a CRISP, SHORT analysis in exactly this format:
 
-1. **Risk Assessment** 🚨
-   - Will this cause outages or performance degradation?
-   - Based on the metrics, can the infrastructure handle the load?
-   - Are there any dangerous configuration changes?
+## Risk Level: [CRITICAL/HIGH/MEDIUM/LOW]
 
-2. **Cost Impact** 💰
-   - Are resources over-provisioned or under-utilized?
-   - What's the estimated cost change?
-   - Any optimization opportunities?
+## Why This is Risky
+[1-2 sentences max. Be specific with numbers from the metrics. What will break?]
 
-3. **Recommendations** ✅
-   - What should be done before merging?
-   - Any safer alternatives?
+## What To Do
+[1-2 bullet points max. Clear action items.]
 
-Focus on these two demo scenarios:
-- **Scenario 1**: If replicas are being reduced, check if it can handle peak traffic
-- **Scenario 2**: If compute resources are being added, check if they're right-sized
+Focus on:
+- **Scenario 1**: If replicas reduced → can it handle peak traffic?
+- **Scenario 2**: If compute added → is it right-sized?
 
-Format your response in clear markdown with emojis, bullet points, and specific numbers from the metrics.
-Be direct and actionable - like you're talking to a busy engineer.
+Keep it SHORT and PUNCHY. Like a busy engineer needs to understand in 10 seconds.
 """
 
     try:
         response = client.messages.create(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=2000,
+            max_tokens=500,
             messages=[{
                 "role": "user",
                 "content": prompt
@@ -153,14 +185,34 @@ def main():
         print("ℹ️ No infrastructure changes detected in this PR.")
         sys.exit(0)
 
-    # Get Datadog context via MCP
+    # Get Datadog context via API
     datadog_context = get_datadog_context(changes)
 
     # Analyze with Claude
     analysis = analyze_with_claude(changes, datadog_context)
 
-    # Output the analysis
-    print(analysis)
+    # Check if auto-fix is enabled and issue is detected
+    auto_fix_enabled = os.getenv('IAC_GUARDIAN_AUTO_FIX', 'true').lower() == 'true'
+
+    fix_pr_url = None
+    if auto_fix_enabled and datadog_context:
+        # Try to generate and create fix
+        fix_pr_url = try_create_fix(changes, datadog_context, analysis)
+
+    # Format and output the analysis
+    formatter = OutputFormatter()
+
+    # Check if we're outputting for GitHub (has GITHUB_ACTIONS env) or terminal
+    is_github = os.getenv('GITHUB_ACTIONS') == 'true'
+
+    if is_github:
+        # Format for GitHub PR comment (concise format)
+        formatted_output = formatter.format_for_github_concise(analysis, fix_pr_url)
+    else:
+        # Format for terminal (clean, no HTML)
+        formatted_output = formatter.format_for_terminal(analysis, fix_pr_url)
+
+    print(formatted_output)
 
 
 if __name__ == "__main__":
