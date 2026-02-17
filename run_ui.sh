@@ -15,6 +15,14 @@ fi
 # Activate venv
 source venv/bin/activate
 
+# Load .env file if it exists
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+    echo "✓ Loaded environment from .env"
+fi
+
 # Install/upgrade dependencies
 echo "Installing dependencies..."
 pip install -q --upgrade pip

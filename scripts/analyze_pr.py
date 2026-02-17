@@ -74,10 +74,12 @@ def try_create_fix(changes: Dict, datadog_context: Dict, analysis: str) -> Optio
         fix = generator.generate_fix(changes, datadog_context, analysis)
 
         if not fix:
-            print("ℹ️  No automatic fix available for this issue")
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print("ℹ️  No automatic fix available for this issue")
             return None
 
-        print(f"\n🔧 Generated fix: {fix['description']}")
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"\n🔧 Generated fix: {fix['description']}")
 
         # Create PR
         pr_creator = GitHubPRCreator()
@@ -90,7 +92,8 @@ def try_create_fix(changes: Dict, datadog_context: Dict, analysis: str) -> Optio
         return pr_url
 
     except Exception as e:
-        print(f"⚠️  Could not create auto-fix: {e}")
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"⚠️  Could not create auto-fix: {e}")
         return None
 
 
@@ -203,8 +206,8 @@ def main():
     is_github = os.getenv('GITHUB_ACTIONS') == 'true'
 
     if is_github:
-        # Format for GitHub PR comment (with HTML/badges)
-        formatted_output = formatter.format_analysis(analysis, fix_pr_url)
+        # Format for GitHub PR comment (concise format)
+        formatted_output = formatter.format_for_github_concise(analysis, fix_pr_url)
     else:
         # Format for terminal (clean, no HTML)
         formatted_output = formatter.format_for_terminal(analysis, fix_pr_url)

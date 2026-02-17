@@ -6,6 +6,14 @@ set -e
 echo "🧪 Testing IaC Guardian locally..."
 echo ""
 
+# Load .env file if it exists
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+    echo "✓ Loaded .env file"
+fi
+
 # Check if in venv
 if [ -z "$VIRTUAL_ENV" ]; then
     echo "⚠️  Not in virtual environment. Creating one..."

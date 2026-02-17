@@ -206,7 +206,8 @@ class FixGenerator:
 
             return content
         except Exception as e:
-            print(f"Error reading K8s file: {e}")
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print(f"Error reading K8s file: {e}")
             return ""
 
     def _generate_hpa_config(self, service_name: str, min_replicas: int, max_replicas: int) -> str:

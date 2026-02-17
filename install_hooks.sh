@@ -24,6 +24,14 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 
 # Run IaC Guardian
 cd "$REPO_ROOT"
+
+# Load .env file if it exists
+if [ -f .env ]; then
+    set -a
+    source .env
+    set +a
+fi
+
 source venv/bin/activate 2>/dev/null || true
 python iac-guardian-cli.py
 

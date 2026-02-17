@@ -19,7 +19,9 @@ class GitHubPRCreator:
         self.repo = os.getenv('GITHUB_REPOSITORY')  # Format: owner/repo
 
         if not self.token:
-            print("⚠️  Warning: GITHUB_TOKEN not set - PR creation will fail")
+            # Only show warning in terminal mode, not GitHub Actions
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print("⚠️  Warning: GITHUB_TOKEN not set - PR creation will fail")
 
         self.headers = {
             'Authorization': f'token {self.token}',
@@ -39,7 +41,8 @@ class GitHubPRCreator:
             PR URL if successful, None otherwise
         """
         if not self.token or not self.repo:
-            print("Cannot create PR: Missing GITHUB_TOKEN or GITHUB_REPOSITORY")
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print("Cannot create PR: Missing GITHUB_TOKEN or GITHUB_REPOSITORY")
             return self._simulate_pr_creation(fix, original_pr_number)
 
         try:
@@ -190,17 +193,21 @@ Co-Authored-By: IaC Guardian <iac-guardian@datadog.com>
 
     def _simulate_pr_creation(self, fix: Dict, original_pr: Optional[int]) -> str:
         """Simulate PR creation for local testing"""
-        print("\n" + "="*80)
-        print("🔧 SIMULATED PR CREATION (no GitHub token)")
-        print("="*80)
-        print(f"\n📝 **Title:** {fix['pr_title']}")
-        print(f"\n📄 **Files changed:**")
-        for file_info in fix['files']:
-            print(f"   - {file_info['path']}")
-        print(f"\n📖 **Description:**\n{fix['pr_body'][:500]}...")
-        print("\n" + "="*80)
+        # Only show verbose output in terminal mode, not GitHub Actions
+        is_github_actions = os.getenv('GITHUB_ACTIONS') == 'true'
 
-        return f"https://github.com/simulated/pr/{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        if not is_github_actions:
+            print("\n" + "="*80)
+            print("🔧 SIMULATED PR CREATION (no GitHub token)")
+            print("="*80)
+            print(f"\n📝 **Title:** {fix['pr_title']}")
+            print(f"\n📄 **Files changed:**")
+            for file_info in fix['files']:
+                print(f"   - {file_info['path']}")
+            print(f"\n📖 **Description:**\n{fix['pr_body'][:500]}...")
+            print("\n" + "="*80)
+
+        return None  # Don't include simulated URLs in GitHub comments
 
     def comment_on_pr(self, pr_number: int, comment: str) -> bool:
         """

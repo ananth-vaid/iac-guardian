@@ -21,8 +21,10 @@ class DatadogAPIClient:
         self.base_url = f"https://api.{self.site}/api/v1"
 
         if not self.api_key or not self.app_key:
-            print("⚠️  Warning: DATADOG_API_KEY or DATADOG_APP_KEY not set")
-            print("   Falling back to mock data for demo")
+            # Only show warning in terminal mode, not GitHub Actions
+            if os.getenv('GITHUB_ACTIONS') != 'true':
+                print("⚠️  Warning: DATADOG_API_KEY or DATADOG_APP_KEY not set")
+                print("   Falling back to mock data for demo")
             self.use_mock = True
         else:
             self.use_mock = False
