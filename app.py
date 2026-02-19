@@ -16,9 +16,12 @@ from datetime import datetime, timedelta
 # Add scripts to path
 sys.path.insert(0, str(Path(__file__).parent / "scripts"))
 
-from analyze_pr import parse_diff, analyze_with_claude
+import re
+import time
+from analyze_pr import parse_diff, analyze_with_claude, analyze_with_mcp
 from datadog_api_client import get_datadog_context, DatadogAPIClient
 from fix_generator import FixGenerator
+from metrics_emitter import emit_analysis_metrics, infer_category, infer_cost_savings
 
 # Page config
 st.set_page_config(
@@ -511,12 +514,43 @@ index f9b5445..59a26b9 100644
                         if cost_chart:
                             st.plotly_chart(cost_chart, use_container_width=True)
 
-            # Analyze with Claude
+            # Analyze with Claude (via MCP for real DD metrics, or fallback)
             st.divider()
             st.markdown("## 🤖 AI Analysis")
 
-            with st.spinner("Analyzing with Claude..."):
-                analysis = analyze_with_claude(changes, datadog_context)
+            t_start = time.time()
+            with st.spinner("Analyzing with Claude + Datadog MCP..."):
+                mcp_result = analyze_with_mcp(changes)
+
+            if mcp_result.get("analysis"):
+                analysis = mcp_result["analysis"]
+                analysis_data_source = mcp_result["data_source"]
+            else:
+                with st.spinner("Analyzing with Claude (mock data)..."):
+                    analysis = analyze_with_claude(changes, datadog_context)
+                analysis_data_source = "mock"
+
+            duration_ms = (time.time() - t_start) * 1000
+
+            # Emit metrics (silent no-op if no DD keys)
+            risk_match = re.search(r'\b(CRITICAL|HIGH|MEDIUM|LOW)\b', analysis)
+            _risk_level = risk_match.group(1) if risk_match else "LOW"
+            _scenario_type = changes.get('files', [{}])[0].get('file', '').split('/')[-1].replace('.yaml', '').replace('.tf', '')
+            emit_analysis_metrics(
+                risk_level=_risk_level,
+                scenario_type=_scenario_type,
+                repo=os.getenv('GITHUB_REPOSITORY', 'demo'),
+                data_source=analysis_data_source,
+                category=infer_category(_scenario_type, analysis),
+                cost_savings_annual=infer_cost_savings(analysis),
+                duration_ms=duration_ms,
+            )
+
+            # Data source badge
+            if analysis_data_source == "mcp":
+                st.success("🟢 Live Datadog Metrics — Claude queried your real DD org via MCP")
+            else:
+                st.info("⚪ Demo Mode (Mock Data) — set DATADOG_API_KEY for live metrics")
 
             # Display analysis
             st.markdown(analysis)

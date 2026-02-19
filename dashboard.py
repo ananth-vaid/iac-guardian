@@ -4,7 +4,9 @@ IaC Guardian - Management Dashboard
 Datadog-style executive dashboard for FinOps and engineering managers
 """
 
+import os
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -323,6 +325,29 @@ def main():
         st.markdown(f"**{data['summary']['auto_fixes']}** auto-fixes")
         st.caption("Avg 4 hours per fix")
         st.markdown(f"### Time Saved: **{data['summary']['auto_fixes'] * 4} hours**")
+
+    st.divider()
+
+    # Live Datadog dashboard embed
+    st.markdown("## 📊 Live Datadog Dashboard")
+
+    dd_url = os.getenv("DATADOG_DASHBOARD_URL", "")
+    if dd_url:
+        st.success("🟢 Live Datadog dashboard embedded below")
+        st.caption(f"URL: {dd_url}")
+        components.iframe(dd_url, height=900, scrolling=True)
+    else:
+        st.info(
+            "**Set `DATADOG_DASHBOARD_URL` in your `.env` file** to embed your live IaC Guardian "
+            "SRE Impact dashboard here.\n\n"
+            "1. Seed metrics: `source .env && python scripts/seed_demo_metrics.py`\n"
+            "2. Import dashboard: upload `datadog-dashboard.json` to Datadog → Dashboards\n"
+            "3. Copy the dashboard URL and add to `.env`:\n"
+            "   ```\n"
+            "   DATADOG_DASHBOARD_URL=https://app.datadoghq.com/dashboard/abc-123-xyz\n"
+            "   ```\n"
+            "4. Restart the app — the live Datadog dashboard will appear here."
+        )
 
     # Footer
     st.markdown("---")

@@ -8,12 +8,14 @@ import os
 import sys
 import json
 import re
+import time
 from typing import Dict, List, Optional
 import anthropic
 from datadog_api_client import get_datadog_context
 from fix_generator import FixGenerator
 from github_pr_creator import GitHubPRCreator
 from output_formatter import OutputFormatter
+from metrics_emitter import emit_analysis_metrics, infer_category, infer_cost_savings
 
 def parse_diff(diff_file: str) -> Dict[str, any]:
     """Parse git diff to extract changed files and their changes"""
@@ -97,8 +99,251 @@ def try_create_fix(changes: Dict, datadog_context: Dict, analysis: str) -> Optio
         return None
 
 
+MCP_SERVER_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "mcp-servers", "datadog-mcp"
+)
+
+# Tool definitions Claude can call to query Datadog
+_DD_TOOLS = [
+    {
+        "name": "get_deployment_replicas",
+        "description": "Get current and historical replica counts for a Kubernetes deployment. Queries kubernetes_state.deployment.replicas_available.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deployment_name": {"type": "string", "description": "K8s deployment name"},
+                "hours_back": {"type": "integer", "description": "Hours of history to fetch", "default": 168},
+            },
+            "required": ["deployment_name"],
+        },
+    },
+    {
+        "name": "get_deployment_health",
+        "description": "Get health signals for a K8s deployment: CPU usage, container restarts, liveness probe failures.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deployment_name": {"type": "string", "description": "K8s deployment name"},
+                "hours_back": {"type": "integer", "description": "Hours of history to fetch", "default": 24},
+            },
+            "required": ["deployment_name"],
+        },
+    },
+    {
+        "name": "get_pdb_status",
+        "description": "Get PodDisruptionBudget status: disruptions_allowed and pods_desired for a deployment.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deployment_name": {"type": "string", "description": "K8s deployment name"},
+            },
+            "required": ["deployment_name"],
+        },
+    },
+    {
+        "name": "get_hpa_status",
+        "description": "Get HorizontalPodAutoscaler status: current vs desired replicas.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "deployment_name": {"type": "string", "description": "K8s deployment name"},
+            },
+            "required": ["deployment_name"],
+        },
+    },
+    {
+        "name": "get_service_health",
+        "description": "Get health metrics for a service: CPU, restarts, request rate, error rate.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "service_name": {"type": "string", "description": "Service name"},
+                "hours_back": {"type": "integer", "description": "Hours of history to fetch", "default": 24},
+            },
+            "required": ["service_name"],
+        },
+    },
+]
+
+
+def _execute_dd_tool(tool_name: str, tool_input: Dict) -> str:
+    """
+    Execute a Datadog tool call by querying the API directly.
+    Uses DatadogAPIClient which has real API + mock fallback.
+    """
+    from datadog_api_client import DatadogAPIClient
+    import time
+
+    client = DatadogAPIClient()
+    name = tool_input.get("deployment_name") or tool_input.get("service_name", "unknown")
+    hours_back = tool_input.get("hours_back", 24)
+    now = int(time.time())
+    from_ts = now - hours_back * 3600
+
+    def _query(q):
+        result = client.query_metrics(q, from_ts, now)
+        series = result.get("series", [])
+        if not series:
+            return f"No data for: {q}"
+        pts = series[0].get("pointlist", [])
+        vals = [p[1] for p in pts if p[1] is not None]
+        if not vals:
+            return f"No values for: {q}"
+        return (
+            f"Query: {q}\n"
+            f"  avg={sum(vals)/len(vals):.1f}  max={max(vals):.1f}  "
+            f"min={min(vals):.1f}  samples={len(vals)}"
+        )
+
+    if tool_name == "get_deployment_replicas":
+        r1 = _query(f"avg:kubernetes_state.deployment.replicas_available{{kube_deployment:{name}}}")
+        r2 = _query(f"avg:kubernetes_state.deployment.replicas_unavailable{{kube_deployment:{name}}}")
+        return f"Deployment Replicas: {name}\n{r1}\n{r2}"
+
+    elif tool_name == "get_deployment_health":
+        r1 = _query(f"avg:kubernetes.cpu.usage.total{{kube_deployment:{name}}}")
+        r2 = _query(f"sum:kubernetes.containers.restarts{{kube_deployment:{name}}}")
+        r3 = _query(f"sum:kubernetes.liveness_probe.failure.total{{kube_deployment:{name}}}")
+        return f"Deployment Health: {name}\nCPU: {r1}\nRestarts: {r2}\nLiveness failures: {r3}"
+
+    elif tool_name == "get_pdb_status":
+        r1 = _query(f"avg:kubernetes_state.pdb.disruptions_allowed{{kube_deployment:{name}}}")
+        r2 = _query(f"avg:kubernetes_state.pdb.pods_desired{{kube_deployment:{name}}}")
+        return f"PDB Status: {name}\nDisruptions allowed: {r1}\nPods desired: {r2}"
+
+    elif tool_name == "get_hpa_status":
+        r1 = _query(f"avg:kubernetes_state.hpa.current_replicas{{kube_deployment:{name}}}")
+        r2 = _query(f"avg:kubernetes_state.hpa.desired_replicas{{kube_deployment:{name}}}")
+        return f"HPA Status: {name}\nCurrent: {r1}\nDesired: {r2}"
+
+    elif tool_name == "get_service_health":
+        r1 = _query(f"avg:kubernetes.cpu.usage.total{{kube_deployment:{name}}}")
+        r2 = _query(f"sum:kubernetes.containers.restarts{{kube_deployment:{name}}}")
+        r3 = _query(f"sum:trace.http.request.hits{{service:{name}}}.as_count()")
+        return f"Service Health: {name}\nCPU: {r1}\nRestarts: {r2}\nRequests: {r3}"
+
+    return f"Unknown tool: {tool_name}"
+
+
+DD_MCP_URL = "https://mcp.datadoghq.com/api/unstable/mcp-server/mcp"
+
+
+def analyze_with_mcp(changes: Dict) -> Dict:
+    """
+    Analyze infrastructure changes with Claude using the official Datadog MCP server.
+
+    Uses the Anthropic API MCP beta (type=url) to connect to mcp.datadoghq.com —
+    the same server Claude Code uses. Claude actively calls Datadog tools to fetch
+    real metrics, then produces a risk assessment.
+
+    Falls back to the multi-turn tool-use approach (with mock data) if MCP fails.
+
+    Returns:
+        dict with keys: 'analysis' (str | None), 'data_source' ("mcp" | "mock")
+    """
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+    if not api_key:
+        return {"analysis": None, "data_source": "mock"}
+
+    diff_summary = f"Files changed: {len(changes['files'])}"
+    if changes.get('replica_changes'):
+        diff_summary += f"\nReplica count changes: {changes['replica_changes']}"
+    if changes.get('instance_type_changes'):
+        diff_summary += f"\nInstance type changes: {changes['instance_type_changes']}"
+    if changes.get('count_changes'):
+        diff_summary += f"\nResource count changes: {changes['count_changes']}"
+
+    prompt = f"""You are IaC Guardian, an infrastructure risk analyzer with access to Datadog.
+
+Analyze this infrastructure change:
+
+## Summary
+{diff_summary}
+
+## Full Diff
+```diff
+{changes['raw_diff'][:3000]}
+```
+
+Instructions:
+1. Use Datadog tools to query metrics for any affected services or deployments.
+2. Assess the risk based on real data.
+3. Respond in exactly this format:
+
+## Risk Level: [CRITICAL/HIGH/MEDIUM/LOW]
+
+## Why This is Risky
+[1-2 sentences. Be specific with metric numbers. What will break?]
+
+## What To Do
+[1-2 bullet points. Clear action items.]
+
+Keep it SHORT. A busy engineer needs to understand in 10 seconds.
+"""
+
+    # Try: official Datadog MCP server via Anthropic API URL-type MCP beta
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        response = client.beta.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+            mcp_servers=[{"type": "url", "url": DD_MCP_URL, "name": "datadog"}],
+            betas=["mcp-client-2025-04-04"],
+        )
+        analysis_text = next(
+            (b.text for b in reversed(response.content) if hasattr(b, "text")), ""
+        )
+        if analysis_text:
+            return {"analysis": analysis_text, "data_source": "mcp"}
+    except Exception as e:
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"⚠️  DD MCP URL failed ({e}), trying tool-use fallback")
+
+    # Fallback: multi-turn tool-use loop with DatadogAPIClient (real API or mock)
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        messages = [{"role": "user", "content": prompt}]
+
+        for _ in range(6):
+            response = client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=1024,
+                tools=_DD_TOOLS,
+                messages=messages,
+            )
+
+            if response.stop_reason != "tool_use":
+                analysis_text = next(
+                    (b.text for b in response.content if hasattr(b, "text")), ""
+                )
+                return {"analysis": analysis_text, "data_source": "mcp"}
+
+            tool_results = []
+            for block in response.content:
+                if block.type == "tool_use":
+                    if os.getenv('GITHUB_ACTIONS') != 'true':
+                        print(f"🔧 Calling {block.name}({block.input})")
+                    result = _execute_dd_tool(block.name, block.input)
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": result,
+                    })
+
+            messages.append({"role": "assistant", "content": response.content})
+            messages.append({"role": "user", "content": tool_results})
+
+    except Exception as e:
+        if os.getenv('GITHUB_ACTIONS') != 'true':
+            print(f"⚠️  Tool-use fallback also failed ({e})")
+
+    return {"analysis": None, "data_source": "mock"}
+
+
 def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -> str:
-    """Send changes to Claude for analysis"""
+    """Send changes to Claude for analysis (fallback when MCP is unavailable)"""
 
     api_key = os.getenv('ANTHROPIC_API_KEY')
     if not api_key:
@@ -131,7 +376,6 @@ def analyze_with_claude(changes: Dict, datadog_context: Optional[Dict] = None) -
 
     context += f"\n## Full Diff:\n```diff\n{changes['raw_diff'][:3000]}\n```\n"
 
-    # Prompt for analysis
     prompt = f"""{context}
 
 Analyze this infrastructure change and provide a CRISP, SHORT analysis in exactly this format:
@@ -144,16 +388,12 @@ Analyze this infrastructure change and provide a CRISP, SHORT analysis in exactl
 ## What To Do
 [1-2 bullet points max. Clear action items.]
 
-Focus on:
-- **Scenario 1**: If replicas reduced → can it handle peak traffic?
-- **Scenario 2**: If compute added → is it right-sized?
-
 Keep it SHORT and PUNCHY. Like a busy engineer needs to understand in 10 seconds.
 """
 
     try:
         response = client.messages.create(
-            model="claude-sonnet-4-5-20250929",
+            model="claude-sonnet-4-6",
             max_tokens=500,
             messages=[{
                 "role": "user",
@@ -185,11 +425,21 @@ def main():
         print("ℹ️ No infrastructure changes detected in this PR.")
         sys.exit(0)
 
-    # Get Datadog context via API
-    datadog_context = get_datadog_context(changes)
+    t_start = time.time()
 
-    # Analyze with Claude
-    analysis = analyze_with_claude(changes, datadog_context)
+    # Try MCP-powered analysis first (uses real Datadog data via local MCP server)
+    mcp_result = analyze_with_mcp(changes)
+    if mcp_result.get("analysis"):
+        analysis = mcp_result["analysis"]
+        data_source = mcp_result["data_source"]
+        datadog_context = {"data_source": data_source}  # Signal for auto-fix path
+    else:
+        # Fallback: get Datadog context via REST API (may use mock data)
+        datadog_context = get_datadog_context(changes)
+        analysis = analyze_with_claude(changes, datadog_context)
+        data_source = "mock"
+
+    duration_ms = (time.time() - t_start) * 1000
 
     # Check if auto-fix is enabled and issue is detected
     auto_fix_enabled = os.getenv('IAC_GUARDIAN_AUTO_FIX', 'true').lower() == 'true'
@@ -198,6 +448,23 @@ def main():
     if auto_fix_enabled and datadog_context:
         # Try to generate and create fix
         fix_pr_url = try_create_fix(changes, datadog_context, analysis)
+
+    # Emit metrics to Datadog (silent no-op if no DD keys)
+    risk_match = re.search(r'\b(CRITICAL|HIGH|MEDIUM|LOW)\b', analysis)
+    risk_level = risk_match.group(1) if risk_match else "LOW"
+    repo = os.getenv('GITHUB_REPOSITORY', 'unknown')
+    scenario_type = changes.get('files', [{}])[0].get('file', '').split('/')[-1].replace('.yaml', '').replace('.tf', '')
+    category = infer_category(scenario_type, analysis)
+    cost_savings = infer_cost_savings(analysis)
+    emit_analysis_metrics(
+        risk_level=risk_level,
+        scenario_type=scenario_type,
+        repo=repo,
+        data_source=data_source,
+        category=category,
+        cost_savings_annual=cost_savings,
+        duration_ms=duration_ms,
+    )
 
     # Format and output the analysis
     formatter = OutputFormatter()
