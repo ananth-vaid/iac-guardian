@@ -285,16 +285,32 @@ def main():
                 "Select Demo:",
                 [
                     "Scenario 1: Peak Traffic Risk",
-                    "Scenario 2: Cost Optimization"
+                    "Scenario 2: Cost Optimization",
+                    "Scenario 3: Missing Health Checks",
+                    "Scenario 4: Missing PodDisruptionBudget",
+                    "Scenario 5: Insufficient Replicas",
+                    "Scenario 6: Security Group Too Open"
                 ]
             )
 
             if scenario == "Scenario 1: Peak Traffic Risk":
                 st.info("🚨 Reduces K8s replicas 20→5. Will it crash?")
                 diff_path = "examples/scenario-1-peak-traffic/payment-api-deployment.yaml"
-            else:
+            elif scenario == "Scenario 2: Cost Optimization":
                 st.info("💰 Adds 10x c5.4xlarge. Is it over-provisioned?")
                 diff_path = "examples/scenario-2-cost-optimization/compute.tf"
+            elif scenario == "Scenario 3: Missing Health Checks":
+                st.info("⚠️ Container deployed without liveness/readiness probes")
+                diff_path = "examples/scenario-3-health-checks/api-deployment.yaml"
+            elif scenario == "Scenario 4: Missing PodDisruptionBudget":
+                st.info("🔄 High-availability service without PDB - risky rolling updates")
+                diff_path = "examples/scenario-4-pdb/frontend-deployment.yaml"
+            elif scenario == "Scenario 5: Insufficient Replicas":
+                st.info("🔢 Production service with only 2 replicas - no HA during deploys")
+                diff_path = "examples/scenario-5-replicas/checkout-deployment.yaml"
+            elif scenario == "Scenario 6: Security Group Too Open":
+                st.info("🚪 SSH open to 0.0.0.0/0 - security vulnerability")
+                diff_path = "examples/scenario-6-security/security-groups.tf"
 
             # Create mock diff for demo
             if scenario == "Scenario 1: Peak Traffic Risk":
@@ -311,7 +327,7 @@ index 63e64b6..860092d 100644
    selector:
      matchLabels:
        app: payment-api"""
-            else:
+            elif scenario == "Scenario 2: Cost Optimization":
                 diff_content = """diff --git a/compute.tf b/compute.tf
 index f9b5445..59a26b9 100644
 --- a/compute.tf
@@ -331,6 +347,77 @@ index f9b5445..59a26b9 100644
 
    tags = {
      Name        = "data-processor-${count.index}\""""
+
+            elif scenario == "Scenario 3: Missing Health Checks":
+                diff_content = """diff --git a/api-deployment.yaml b/api-deployment.yaml
+index abc123..def456 100644
+--- a/api-deployment.yaml
++++ b/api-deployment.yaml
+@@ -1,6 +1,7 @@
+ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: api-server
++  namespace: production
+ spec:
+   replicas: 10
+@@ -15,6 +16,7 @@ spec:
+      containers:
+      - name: api
+        image: api-server:v2.0
++        # NOTE: No liveness or readiness probes configured!
+        ports:
+        - containerPort: 8080"""
+
+            elif scenario == "Scenario 4: Missing PodDisruptionBudget":
+                diff_content = """diff --git a/frontend-deployment.yaml b/frontend-deployment.yaml
+index aaa111..bbb222 100644
+--- a/frontend-deployment.yaml
++++ b/frontend-deployment.yaml
+@@ -1,9 +1,10 @@
+ apiVersion: apps/v1
+ kind: Deployment
+ metadata:
+   name: frontend
+   namespace: production
++  # NOTE: No PodDisruptionBudget defined for this service
+ spec:
+   replicas: 5"""
+
+            elif scenario == "Scenario 5: Insufficient Replicas":
+                diff_content = """diff --git a/checkout-deployment.yaml b/checkout-deployment.yaml
+index xxx999..yyy888 100644
+--- a/checkout-deployment.yaml
++++ b/checkout-deployment.yaml
+@@ -5,7 +5,7 @@ metadata:
+   namespace: production
+   labels:
+    app: checkout
+ spec:
+-  replicas: 3
++  replicas: 2
+   selector:"""
+
+            elif scenario == "Scenario 6: Security Group Too Open":
+                diff_content = """diff --git a/security-groups.tf b/security-groups.tf
+index zzz777..www666 100644
+--- a/security-groups.tf
++++ b/security-groups.tf
+@@ -1,10 +1,11 @@
+ resource "aws_security_group" "app_servers" {
+   name        = "app-servers"
+  description = "Security group for application servers"
+   vpc_id      = aws_vpc.main.id
+
+   ingress {
++    description = "SSH access"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+-    cidr_blocks = ["10.0.0.0/8"]
++    cidr_blocks = ["0.0.0.0/0"]  # WARNING: Open to internet!
+   }
+ }"""
 
         elif input_method == "Upload Diff":
             uploaded_file = st.file_uploader("Upload git diff file", type=['txt', 'diff'])
