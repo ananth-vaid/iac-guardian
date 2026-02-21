@@ -2,6 +2,8 @@
 
 AI-powered Infrastructure-as-Code PR reviewer that prevents production incidents before they happen.
 
+**Status:** ✅ Demo-ready | **Live Demo:** [PR #1](https://github.com/ananth-vaid/iac-guardian/pull/1)
+
 ## What It Does
 
 Analyzes Terraform and Kubernetes PRs for:
