@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-server
+  namespace: production
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: api-server
+  template:
+    metadata:
+      labels:
+        app: api-server
+    spec:
+      containers:
+      - name: api
+        image: api-server:v2.0
+        ports:
+        - containerPort: 8080
+        # NOTE: No liveness or readiness probes configured
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
