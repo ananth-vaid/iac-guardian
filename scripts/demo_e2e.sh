@@ -1,6 +1,6 @@
 #!/bin/bash
 # demo_e2e.sh — Create demo PRs for scenarios 3-6 and trigger GitHub Actions
-# Usage: ./scripts/demo_e2e.sh [--dry-run] [--scenarios 3,4,5,6]
+# Usage: ./scripts/demo_e2e.sh [--dry-run] [--all]
 #
 # Scenarios 1 & 2 already have live PRs. This script creates PRs for 3-6.
 # Each PR commits a real .yaml/.tf file so the workflow triggers and analyzes it.
@@ -48,10 +48,7 @@ create_scenario_pr() {
         return
     fi
 
-    # Ensure we're on main
     git checkout "$BASE_BRANCH" 2>/dev/null
-
-    # Clean up any existing local branch
     git branch -D "$BRANCH" 2>/dev/null || true
     git checkout -b "$BRANCH"
 
@@ -59,12 +56,10 @@ create_scenario_pr() {
     write_scenario_file "$NUM"
 
     git add -A
-    # --no-verify bypasses the pre-commit hook intentionally:
-    # these are demo PRs with known-risky changes. GitHub Actions will still catch them.
+    # --no-verify: these are intentionally risky demo files; GitHub Actions will still catch them
     git commit --no-verify -m "$TITLE"
     git push origin "$BRANCH" --force
 
-    # Create or update PR
     EXISTING=$(gh pr list --head "$BRANCH" --json number -q '.[0].number' 2>/dev/null || echo "")
     if [ -n "$EXISTING" ]; then
         PR_URL=$(gh pr view "$EXISTING" --json url -q .url)
@@ -129,7 +124,6 @@ metadata:
   labels:
     app: payment-api
     team: payments
-    service: checkout
 spec:
   replicas: 5
   selector:
@@ -149,9 +143,6 @@ spec:
           requests:
             cpu: "500m"
             memory: "512Mi"
-          limits:
-            cpu: "2000m"
-            memory: "2Gi"
 EOF
             ;;
         2)
