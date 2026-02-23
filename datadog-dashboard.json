@@ -1,0 +1,301 @@
+{
+  "title": "IaC Guardian — SRE Impact",
+  "description": "AI-powered infrastructure change analysis — preventing outages and optimizing costs before they hit production.",
+  "widgets": [
+    {
+      "id": 0,
+      "definition": {
+        "type": "note",
+        "content": "# 🛡️ IaC Guardian — SRE Impact\nAI-powered infrastructure change analysis. Claude reviews every IaC PR, queries live Datadog metrics, and blocks risky changes before they hit production.\n\n**30-day rolling window** — Updated as PRs merge.",
+        "background_color": "vivid_purple",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 0, "width": 12, "height": 2 }
+    },
+    {
+      "id": 1,
+      "definition": {
+        "type": "note",
+        "content": "# 89\n### Risks Blocked\n*(last 30 days)*\n\n↑ 28% flag rate",
+        "background_color": "red",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 2, "width": 3, "height": 3 }
+    },
+    {
+      "id": 2,
+      "definition": {
+        "type": "note",
+        "content": "# 23\n### Critical Risks Blocked\n*(last 30 days)*\n\n🚨 Would-be production incidents",
+        "background_color": "orange",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 3, "y": 2, "width": 3, "height": 3 }
+    },
+    {
+      "id": 3,
+      "definition": {
+        "type": "note",
+        "content": "# 18\n### Incidents Prevented\n*(last 30 days)*\n\n💰 ~$36M in avoided downtime",
+        "background_color": "green",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 6, "y": 2, "width": 3, "height": 3 }
+    },
+    {
+      "id": 4,
+      "definition": {
+        "type": "note",
+        "content": "# $2.3M\n### Cost Savings Identified\n*(annual run rate)*\n\n💡 Right-sizing + over-provisioning",
+        "background_color": "blue",
+        "font_size": "14",
+        "text_align": "center",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 9, "y": 2, "width": 3, "height": 3 }
+    },
+    {
+      "id": 5,
+      "definition": {
+        "type": "note",
+        "content": "## 📊 PR Analysis Trend (30d)\n\n```\nWeek 1:  ████░░░  62 PRs  |  14 flagged\nWeek 2:  █████░░  78 PRs  |  21 flagged\nWeek 3:  ██████░  89 PRs  |  27 flagged\nWeek 4:  ███████  83 PRs  |  27 flagged\n```\n\n**Trend:** ↑ adoption growing. Flag rate steady at ~28%.",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 5, "width": 6, "height": 4 }
+    },
+    {
+      "id": 6,
+      "definition": {
+        "type": "note",
+        "content": "## 🎯 Risk Breakdown (30d)\n\n| Category | Count | % |\n|---|---|---|\n| 🔴 Incident-causing | 49 | 55% |\n| 💰 Cost optimization | 27 | 30% |\n| 🔒 Security | 8 | 9% |\n| ⚙️ Reliability | 5 | 6% |\n\n**Top repos:** payment-api (12), checkout (8), data-processor (6)",
+        "background_color": "gray",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 6, "y": 5, "width": 6, "height": 4 }
+    },
+    {
+      "id": 7,
+      "definition": {
+        "type": "note",
+        "content": "## 🚨 Recent Blocks (Last 7 Days)\n\n| PR | Repo | Change | Risk | Action |\n|---|---|---|---|---|\n| #891 | payment-api | Replicas 20→5 | 🔴 CRITICAL | **Blocked** |\n| #887 | data-processor | 10x c5.4xlarge | 🟠 HIGH | Auto-fix created |\n| #882 | checkout | Replicas 3→2 | 🟠 HIGH | **Blocked** |\n| #879 | frontend | SSH 0.0.0.0/0 | 🔴 CRITICAL | **Blocked** |\n| #871 | ml-pipeline | No health probes | 🟡 MEDIUM | Comment added |\n| #864 | user-service | No PDB defined | 🟡 MEDIUM | Comment added |",
+        "background_color": "white",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "top",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 9, "width": 12, "height": 4 }
+    },
+    {
+      "id": 8,
+      "definition": {
+        "type": "note",
+        "content": "## 📈 Live Metrics (Populates as PRs run)\n\nThe widgets below show real-time data from `iac_guardian.*` custom metrics emitted per analysis run.\n\nTo seed 30 days of historical data: `source .env && python scripts/seed_demo_metrics.py`",
+        "background_color": "yellow",
+        "font_size": "14",
+        "text_align": "left",
+        "vertical_align": "center",
+        "show_tick": false,
+        "has_padding": true
+      },
+      "layout": { "x": 0, "y": 13, "width": 12, "height": 2 }
+    },
+    {
+      "id": 9,
+      "definition": {
+        "title": "PRs Analyzed & Flagged (Live)",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              { "alias": "All PRs Analyzed", "formula": "query1" },
+              { "alias": "Risks Flagged", "formula": "query2" }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:iac_guardian.pr.analyzed{*}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "query2",
+                "query": "sum:iac_guardian.risk.blocked{*}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "style": {
+              "palette": "dog_classic",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "bars"
+          }
+        ],
+        "yaxis": { "include_zero": true }
+      },
+      "layout": { "x": 0, "y": 15, "width": 6, "height": 3 }
+    },
+    {
+      "id": 10,
+      "definition": {
+        "title": "Risk Level Distribution (Live)",
+        "title_size": "16",
+        "title_align": "left",
+        "show_legend": true,
+        "legend_layout": "auto",
+        "type": "timeseries",
+        "requests": [
+          {
+            "formulas": [
+              { "alias": "Critical", "formula": "q1" },
+              { "alias": "High", "formula": "q2" },
+              { "alias": "Medium", "formula": "q3" }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "q1",
+                "query": "sum:iac_guardian.risk.blocked{risk_level:critical}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "q2",
+                "query": "sum:iac_guardian.risk.blocked{risk_level:high}.as_count()"
+              },
+              {
+                "data_source": "metrics",
+                "name": "q3",
+                "query": "sum:iac_guardian.risk.blocked{risk_level:medium}.as_count()"
+              }
+            ],
+            "response_format": "timeseries",
+            "style": {
+              "palette": "warm",
+              "line_type": "solid",
+              "line_width": "normal"
+            },
+            "display_type": "bars"
+          }
+        ],
+        "yaxis": { "include_zero": true }
+      },
+      "layout": { "x": 6, "y": 15, "width": 6, "height": 3 }
+    },
+    {
+      "id": 11,
+      "definition": {
+        "title": "Top Repos by Risks Blocked (Live)",
+        "title_size": "16",
+        "title_align": "left",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              { "formula": "query1", "limit": { "count": 10, "order": "desc" } }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:iac_guardian.risk.blocked{*} by {repo}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": { "x": 0, "y": 18, "width": 4, "height": 3 }
+    },
+    {
+      "id": 12,
+      "definition": {
+        "title": "Breakdown by Category (Live)",
+        "title_size": "16",
+        "title_align": "left",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              { "formula": "query1", "limit": { "count": 10, "order": "desc" } }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:iac_guardian.risk.blocked{*} by {category}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": { "x": 4, "y": 18, "width": 4, "height": 3 }
+    },
+    {
+      "id": 13,
+      "definition": {
+        "title": "Top Scenario Types (Live)",
+        "title_size": "16",
+        "title_align": "left",
+        "type": "toplist",
+        "requests": [
+          {
+            "formulas": [
+              { "formula": "query1", "limit": { "count": 10, "order": "desc" } }
+            ],
+            "queries": [
+              {
+                "data_source": "metrics",
+                "name": "query1",
+                "query": "sum:iac_guardian.risk.blocked{*} by {scenario_type}.as_count()",
+                "aggregator": "sum"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      },
+      "layout": { "x": 8, "y": 18, "width": 4, "height": 3 }
+    }
+  ],
+  "template_variables": [
+    { "name": "repo", "prefix": "repo", "default": "*" },
+    { "name": "risk_level", "prefix": "risk_level", "default": "*" }
+  ],
+  "layout_type": "ordered"
+}

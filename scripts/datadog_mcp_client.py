@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
 """
+⚠️ UNUSED EXPLORATION CODE ⚠️
+
+This file is NOT used by the main application.
+The project uses datadog_api_client.py for real API integration.
+
+This file was kept for reference/exploration of MCP integration patterns.
+It may be deleted or used for future MCP-based enhancements.
+
+---
+
 Datadog MCP Client
 Queries Datadog via MCP server for real infrastructure metrics
 """

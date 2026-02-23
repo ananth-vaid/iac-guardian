@@ -25,9 +25,60 @@ PR reduces K8s replicas → Analysis shows it can't handle peak load → Blocks 
 ### Scenario 2: Cost Optimization
 PR adds over-provisioned instances → Suggests right-sizing → Saves $30k/month
 
-## Setup
+## Quick Start
 
-See individual scenario folders in `examples/` for demo PRs.
+### 🚀 Full Demo (All 3 Surfaces)
+```bash
+# See DEMO_QUICKSTART.md for complete setup
+./install_hooks.sh        # Local pre-commit
+./create_demo_prs.sh      # GitHub PRs
+streamlit run dashboard.py --server.port 8502 &  # Management dashboard
+./run_ui.sh &             # Main UI
+```
+
+### Option 1: Web UI
+```bash
+./run_ui.sh  # http://localhost:8501
+```
+
+### Option 2: Management Dashboard
+```bash
+streamlit run dashboard.py --server.port 8502
+```
+
+### Option 3: Local CLI
+```bash
+./install_hooks.sh  # Installs pre-commit hook
+git add <iac-file>
+git commit  # IaC Guardian runs automatically
+```
+
+### Option 4: Command Line
+```bash
+source venv/bin/activate
+export ANTHROPIC_API_KEY="your-key"
+python scripts/analyze_pr.py examples/scenario-1-peak-traffic/demo_diff.txt
+```
+
+## Demo Strategy: 3 Surfaces
+
+IaC Guardian catches issues at **3 different stages**:
+
+1. **Local (Pre-Commit)** - Blocks bad commits before PR creation
+2. **GitHub (PR Review)** - Automated checks that block merges
+3. **Dashboard (Management)** - Executive visibility and ROI tracking
+
+**See [3_SURFACE_DEMO.md](3_SURFACE_DEMO.md) for complete 5-minute demo script**
+
+## Documentation
+
+- **[DEMO_QUICKSTART.md](DEMO_QUICKSTART.md)** - 2-minute setup, 5-minute demo
+- **[3_SURFACE_DEMO.md](3_SURFACE_DEMO.md)** - Complete multi-surface demo guide
+- **[MULTI_SURFACE_DEMO.md](MULTI_SURFACE_DEMO.md)** - Strategy and implementation
+- **[UI_README.md](UI_README.md)** - Streamlit UI guide
+- **[DEMO_GUIDE.md](DEMO_GUIDE.md)** - Original presentation guide
+- **[HACKATHON_DEMO.md](HACKATHON_DEMO.md)** - Hackathon-specific tips
+- `examples/` - Demo scenario files
 
 ---
 
