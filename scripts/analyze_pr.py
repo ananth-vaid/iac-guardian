@@ -274,10 +274,16 @@ Instructions:
 ## Risk Level: [CRITICAL/HIGH/MEDIUM/LOW]
 
 ## Why This is Risky
-[1-2 sentences. Be specific with metric numbers. What will break?]
+[1-2 sentences. Focus on the specific IaC issue in the diff. Rules:
+- Missing health probes: "No liveness/readiness probes — Kubernetes cannot detect if the container is stuck, so broken pods keep receiving traffic."
+- Insufficient replicas: "N replicas in production means a single pod failure or rolling update leaves M pods serving traffic — no HA guarantee."
+- Missing PodDisruptionBudget: "No PDB on a multi-replica service — during node drain or rolling update, Kubernetes can evict all pods simultaneously, causing full downtime."
+- Security group too open: "Port X open to 0.0.0.0/0 — exposed to the entire internet."
+- Cost/instance changes: state actual $/month before and after using real EC2 pricing, e.g. "5x c5.2xlarge = $1,680/mo → 10x c5.4xlarge = $6,720/mo (+$5,040/mo)".
+- If Datadog has no data: still lead with the IaC issue above; then add "Datadog has no metrics for <service> to confirm safe sizing."]
 
 ## What To Do
-[1-2 bullet points. Clear action items.]
+[1-2 bullet points. Be specific: e.g. add the probe config, set replicas to N, add PDB with minAvailable, restrict CIDR to VPN range, or right-size to X instance type saving $Y/mo.]
 
 Keep it SHORT. A busy engineer needs to understand in 10 seconds.
 """
@@ -383,12 +389,18 @@ Analyze this infrastructure change and provide a CRISP, SHORT analysis in exactl
 ## Risk Level: [CRITICAL/HIGH/MEDIUM/LOW]
 
 ## Why This is Risky
-[1-2 sentences max. Be specific with numbers from the metrics. What will break?]
+[1-2 sentences max. Focus on the specific IaC issue in the diff. Rules:
+- Missing health probes: "No liveness/readiness probes — Kubernetes cannot detect if the container is stuck, so broken pods keep receiving traffic."
+- Insufficient replicas: "N replicas in production means a single pod failure or rolling update leaves M pods serving traffic — no HA guarantee."
+- Missing PodDisruptionBudget: "No PDB on a multi-replica service — during node drain or rolling update, Kubernetes can evict all pods simultaneously, causing full downtime."
+- Security group too open: "Port X open to 0.0.0.0/0 — exposed to the entire internet."
+- Cost/instance changes: state actual $/month before and after using real EC2 pricing, e.g. "5x c5.2xlarge = $1,680/mo → 10x c5.4xlarge = $6,720/mo (+$5,040/mo)".
+- If Datadog has no data: still lead with the IaC issue above; then add "Datadog has no metrics for <service> to confirm safe sizing."]
 
 ## What To Do
-[1-2 bullet points max. Clear action items.]
+[1-2 bullet points max. Be specific: e.g. add the probe config, set replicas to N, add PDB with minAvailable, restrict CIDR to VPN range, or right-size to X instance type saving $Y/mo.]
 
-Keep it SHORT and PUNCHY. Like a busy engineer needs to understand in 10 seconds.
+Keep it SHORT and PUNCHY. A busy engineer needs to understand in 10 seconds.
 """
 
     try:
