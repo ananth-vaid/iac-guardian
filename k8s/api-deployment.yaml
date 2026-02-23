@@ -23,3 +23,14 @@ spec:
           requests:
             cpu: "250m"
             memory: "256Mi"
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: api-server-pdb
+  namespace: production
+spec:
+  minAvailable: 7
+  selector:
+    matchLabels:
+      app: api-server
