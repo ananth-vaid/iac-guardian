@@ -14,9 +14,9 @@ provider "aws" {
 
 # Data processing cluster - currently right-sized
 resource "aws_instance" "data_processor" {
-  count         = 5
+  count         = 10
   ami           = "ami-0c55b159cbfafe1f0"
-  instance_type = "c5.2xlarge"
+  instance_type = "c5.4xlarge"
 
   tags = {
     Name        = "data-processor-${count.index}"
