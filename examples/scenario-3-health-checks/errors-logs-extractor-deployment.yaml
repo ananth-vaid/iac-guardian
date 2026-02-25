@@ -16,11 +16,11 @@ spec:
     metadata:
       labels:
         app: errors-logs-extractor-logs-datadog-5cb9
-        version: v3.1.0
+        version: v3.2.0
     spec:
       containers:
       - name: errors-logs-extractor
-        image: datadog/errors-logs-extractor:v3.1.0
+        image: datadog/errors-logs-extractor:v3.2.0
         ports:
         - containerPort: 8080
           name: http
@@ -37,19 +37,7 @@ spec:
         - name: DD_SERVICE
           value: "errors-logs-extractor"
         - name: DD_VERSION
-          value: "v3.1.0"
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8080
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: 8080
-          initialDelaySeconds: 10
-          periodSeconds: 5
+          value: "v3.2.0"
 ---
 apiVersion: v1
 kind: Service
