@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: intake-processor
+  namespace: production
+  labels:
+    app: intake-processor
+    team: intake
+    service: intake-processor
+spec:
+  replicas: 8
+  selector:
+    matchLabels:
+      app: intake-processor
+  template:
+    metadata:
+      labels:
+        app: intake-processor
+        version: v1.0.0
+    spec:
+      containers:
+      - name: intake-processor
+        image: datadog/intake-processor:v1.0.0
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DD_ENV
+          value: "production"
+        - name: DD_SERVICE
+          value: "intake-processor"
+        - name: DD_VERSION
+          value: "v1.0.0"
