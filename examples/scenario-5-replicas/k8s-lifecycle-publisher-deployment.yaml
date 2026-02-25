@@ -8,7 +8,7 @@ metadata:
     team: platform
     service: k8s-lifecycle-publisher
 spec:
-  replicas: 4
+  replicas: 2
   selector:
     matchLabels:
       app: k8s-lifecycle-publisher-shared-bone
