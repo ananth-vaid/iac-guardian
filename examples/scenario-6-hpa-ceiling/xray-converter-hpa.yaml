@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: xray-converter-main
   minReplicas: 50
-  maxReplicas: 300
+  maxReplicas: 200
   metrics:
   - type: Resource
     resource:
