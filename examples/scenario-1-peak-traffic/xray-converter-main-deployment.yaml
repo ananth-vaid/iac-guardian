@@ -8,7 +8,7 @@ metadata:
     team: apm
     service: xray-converter-main
 spec:
-  replicas: 225
+  replicas: 20
   selector:
     matchLabels:
       app: xray-converter-main
