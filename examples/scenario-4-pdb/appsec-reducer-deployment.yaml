@@ -8,7 +8,7 @@ metadata:
     team: appsec
     service: appsec-reducer
 spec:
-  replicas: 12
+  replicas: 15
   selector:
     matchLabels:
       app: appsec-reducer-signal-6cf25-datadog-sep
@@ -50,14 +50,3 @@ spec:
             port: 8080
           initialDelaySeconds: 10
           periodSeconds: 5
----
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: appsec-reducer-pdb
-  namespace: production
-spec:
-  minAvailable: 3
-  selector:
-    matchLabels:
-      app: appsec-reducer-signal-6cf25-datadog-sep
